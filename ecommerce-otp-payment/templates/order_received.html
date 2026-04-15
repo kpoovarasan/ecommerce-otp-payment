@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Order Received — NexusShop{% endblock %}
+{% block content %}
+<div style="min-height:70vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;">
+  <div style="max-width:560px;width:100%;text-align:center;">
+
+    {% if already %}
+    <!-- Already marked -->
+    <div style="font-size:4rem;margin-bottom:16px;">✅</div>
+    <h1 style="font-size:1.8rem;font-weight:900;margin:0 0 10px;color:var(--text-primary);">Already Confirmed!</h1>
+    <p style="color:var(--text-muted);font-size:0.95rem;margin:0 0 30px;">This order was already marked as received. Thank you!</p>
+
+    {% elif success %}
+    <!-- Success animation -->
+    <div style="width:100px;height:100px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:3rem;box-shadow:0 20px 60px rgba(34,197,94,0.4);animation:popIn 0.6s cubic-bezier(0.68,-0.55,0.27,1.55);">✅</div>
+    <h1 style="font-size:2rem;font-weight:900;margin:0 0 10px;color:var(--text-primary);">Order Received!</h1>
+    <p style="color:var(--text-secondary);font-size:1rem;margin:0 0 6px;">Thank you for confirming, <strong>{{ order.customer_name }}</strong>!</p>
+    <p style="color:var(--text-muted);font-size:0.88rem;margin:0 0 20px;">Your order has been marked as <strong style="color:#4ade80;">Delivered</strong> successfully.</p>
+
+    <!-- COD / Payment specific confirmation -->
+    {% if order.payment_method|lower == 'cod' %}
+    <div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:14px;padding:18px 22px;margin-bottom:20px;text-align:left;">
+      <div style="font-size:0.72rem;color:#d97706;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">💵 Cash on Delivery — Payment Confirmation</div>
+      <div style="color:#fbbf24;font-weight:800;font-size:1.2rem;margin-bottom:4px;">₹{{ order.total|int }} — Cash Received ✅</div>
+      <div style="color:#fde68a;font-size:0.85rem;">The delivery agent has collected the cash payment for this order. Your transaction is now complete.</div>
+    </div>
+    {% else %}
+    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:14px;padding:18px 22px;margin-bottom:20px;text-align:left;">
+      <div style="font-size:0.72rem;color:#16a34a;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">{{ order.payment_method|upper }} — Payment Details</div>
+      <div style="color:#4ade80;font-weight:800;font-size:1.1rem;margin-bottom:4px;">✅ ₹{{ order.total|int }} — Payment Successful</div>
+      {% if order.payment_detail %}
+      <div style="color:#86efac;font-size:0.85rem;">Reference: <strong>{{ order.payment_detail }}</strong></div>
+      {% endif %}
+      <div style="color:#6ee7b7;font-size:0.78rem;margin-top:6px;">Verified via NexusShop OTP Gateway.</div>
+    </div>
+    {% endif %}
+
+    <!-- Order Info Card -->
+    <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:22px 28px;margin-bottom:24px;text-align:left;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Order ID</div>
+          <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:0.85rem;">{{ order.order_id }}</div>
+        </div>
+        <div>
+          <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Status</div>
+          <div style="background:rgba(34,197,94,0.15);color:#4ade80;font-weight:700;font-size:0.82rem;padding:4px 12px;border-radius:20px;display:inline-block;border:1px solid rgba(34,197,94,0.3);">✅ Delivered</div>
+        </div>
+        <div>
+          <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">{{ 'Cash Collected' if order.payment_method|lower == 'cod' else 'Amount Paid' }}</div>
+          <div style="font-weight:800;color:var(--gold);font-size:1.1rem;">₹{{ order.total|int }}</div>
+        </div>
+        <div>
+          <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Confirmed On</div>
+          <div style="color:var(--text-secondary);font-size:0.85rem;">{{ now }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items -->
+    <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:20px 24px;margin-bottom:24px;text-align:left;">
+      <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;">Items Delivered</div>
+      {% for item in order.items %}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:1.4rem;">{{ item.emoji or '📦' }}</span>
+          <div>
+            <div style="font-weight:600;font-size:0.88rem;">{{ item.name }}</div>
+            <div style="color:var(--text-muted);font-size:0.75rem;">Qty: {{ item.qty }}</div>
+          </div>
+        </div>
+        <div style="font-weight:700;color:var(--gold);">₹{{ (item.price * item.qty)|int }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- Not found -->
+    <div style="font-size:4rem;margin-bottom:16px;">❌</div>
+    <h1 style="font-size:1.8rem;font-weight:900;margin:0 0 10px;color:var(--text-primary);">Order Not Found</h1>
+    <p style="color:var(--text-muted);font-size:0.95rem;margin:0 0 30px;">We couldn't find this order. Please check your email for the correct link.</p>
+    {% endif %}
+
+    <!-- Buttons -->
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <a href="/" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:700;padding:13px 26px;border-radius:12px;text-decoration:none;font-size:0.9rem;">
+        🛍️ Continue Shopping
+      </a>
+      {% if success %}
+      <a href="mailto:nexusshop.support@gmail.com" style="display:inline-flex;align-items:center;gap:8px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-secondary);font-weight:600;padding:13px 26px;border-radius:12px;text-decoration:none;font-size:0.9rem;">
+        📧 Contact Support
+      </a>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<style>
+@keyframes popIn {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+</style>
+{% endblock %}

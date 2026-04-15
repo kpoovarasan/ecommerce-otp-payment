@@ -1,0 +1,240 @@
+{% extends "admin/base.html" %}
+{% block title %}Users{% endblock %}
+{% block page_title %}Users{% endblock %}
+{% block page_sub %}All registered user accounts — complete details{% endblock %}
+
+{% block content %}
+
+<!-- ── Summary Cards ── -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+  <div class="stat-card" style="--card-color:#06b6d4;--card-bg:rgba(6,182,212,0.1);">
+    <div class="stat-icon">👥</div>
+    <div class="stat-info">
+      <div class="stat-label">Total Users</div>
+      <div class="stat-value">{{ users|length }}</div>
+    </div>
+  </div>
+  <div class="stat-card" style="--card-color:#22c55e;--card-bg:rgba(34,197,94,0.1);">
+    <div class="stat-icon">📦</div>
+    <div class="stat-info">
+      <div class="stat-label">Users with Orders</div>
+      <div class="stat-value">{{ users|selectattr('order_count','gt',0)|list|length }}</div>
+    </div>
+  </div>
+  <div class="stat-card" style="--card-color:#fbbf24;--card-bg:rgba(251,191,36,0.1);">
+    <div class="stat-icon">💰</div>
+    <div class="stat-info">
+      <div class="stat-label">Total User Spend</div>
+      <div class="stat-value">₹{{ "{:,.0f}".format(users|sum(attribute='total_spent')) }}</div>
+    </div>
+  </div>
+  <div class="stat-card" style="--card-color:#a855f7;--card-bg:rgba(168,85,247,0.1);">
+    <div class="stat-icon">📍</div>
+    <div class="stat-info">
+      <div class="stat-label">With Address</div>
+      <div class="stat-value">{{ users|selectattr('address')|list|length }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── User Table ── -->
+<div class="table-card">
+  <div class="table-header">
+    <div>
+      <div class="section-title">👤 All Users — Complete Information</div>
+      <div class="section-sub">Click "Details" to view full order history and account info</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <input class="table-search" id="user-search" placeholder="🔍 Search users…" oninput="tableSearch('user-search','users-table')">
+    </div>
+  </div>
+  <table class="admin-table" id="users-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Password Hash</th>
+        <th>Address</th>
+        <th>Orders</th>
+        <th>Total Spent</th>
+        <th>Joined</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in users %}
+    <tr>
+      <td style="color:#475569;font-size:0.78rem;">{{ u.id }}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="topbar-avatar" style="width:30px;height:30px;font-size:0.75rem;">{{ u.name[0].upper() }}</div>
+          <strong>{{ u.name }}</strong>
+        </div>
+      </td>
+      <td>
+        <span style="color:#818cf8;font-size:0.83rem;">{{ u.email }}</span>
+      </td>
+      <td style="font-size:0.83rem;">
+        {% if u.phone %}<strong>+91{{ u.phone }}</strong>{% else %}<span style="color:#334155;">—</span>{% endif %}
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <code id="hash-{{ u.id }}" style="font-size:0.65rem;color:#475569;background:rgba(255,255,255,0.04);padding:4px 8px;border-radius:6px;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">
+            {{ u.password[:30] }}…
+          </code>
+          <button onclick="toggleHash('{{ u.id }}','{{ u.password }}')" style="background:none;border:1px solid #334155;border-radius:5px;padding:3px 7px;font-size:0.65rem;color:#64748b;cursor:pointer;">👁</button>
+        </div>
+      </td>
+      <td style="max-width:160px;">
+        {% if u.address %}
+        <div style="font-size:0.75rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;" title="{{ u.address }}">
+          📍 {{ u.address[:40] }}{% if u.address|length > 40 %}…{% endif %}
+        </div>
+        {% else %}<span style="color:#334155;font-size:0.78rem;">—</span>{% endif %}
+      </td>
+      <td><strong style="color:#a5b4fc;">{{ u.order_count }}</strong></td>
+      <td><strong style="color:#fbbf24;">₹{{ "{:,.0f}".format(u.total_spent) }}</strong></td>
+      <td style="font-size:0.75rem;color:#64748b;">{{ u.created_at.strftime('%d %b %Y') }}</td>
+      <td>
+        <button onclick="openUserModal({{ u.id }})" class="btn btn-outline btn-sm" style="font-size:0.72rem;">📋 Details</button>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="10" style="text-align:center;color:#475569;padding:40px;">No registered users yet</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ── User Detail Modal ── -->
+<div id="user-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);overflow-y:auto;">
+  <div style="max-width:700px;margin:40px auto;background:#0f0f25;border:1px solid rgba(99,102,241,0.3);border-radius:20px;overflow:hidden;box-shadow:0 40px 80px rgba(0,0,0,0.6);">
+    <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:24px 28px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <h3 style="margin:0;color:#fff;font-size:1.2rem;">👤 User Details</h3>
+        <p id="modal-email" style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:0.83rem;"></p>
+      </div>
+      <button onclick="closeUserModal()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;padding:8px 14px;color:#fff;cursor:pointer;font-size:1rem;">✕</button>
+    </div>
+    <div style="padding:24px 28px;" id="modal-body">
+      <div style="text-align:center;padding:30px;color:#475569;">Loading…</div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Toggle password hash visibility
+function toggleHash(uid, fullHash) {
+  const el = document.getElementById('hash-' + uid);
+  if (el.dataset.shown === '1') {
+    el.textContent = fullHash.substring(0, 30) + '…';
+    el.dataset.shown = '0';
+  } else {
+    el.textContent = fullHash;
+    el.dataset.shown = '1';
+  }
+}
+
+// User detail modal
+function openUserModal(uid) {
+  document.getElementById('user-modal').style.display = 'block';
+  document.getElementById('modal-body').innerHTML = '<div style="text-align:center;padding:40px;color:#475569;">Loading…</div>';
+  fetch('/admin/users/' + uid + '/detail')
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('modal-email').textContent = d.email;
+      let ordersHtml = '';
+      if (d.orders.length === 0) {
+        ordersHtml = '<p style="color:#475569;font-size:0.85rem;margin:0;">No orders placed yet.</p>';
+      } else {
+        ordersHtml = `<table style="width:100%;border-collapse:collapse;">
+          <thead><tr>
+            <th style="text-align:left;padding:8px;font-size:0.7rem;color:#475569;text-transform:uppercase;">Order ID</th>
+            <th style="text-align:left;padding:8px;font-size:0.7rem;color:#475569;text-transform:uppercase;">Items</th>
+            <th style="text-align:left;padding:8px;font-size:0.7rem;color:#475569;text-transform:uppercase;">Payment</th>
+            <th style="text-align:right;padding:8px;font-size:0.7rem;color:#475569;text-transform:uppercase;">Total</th>
+            <th style="text-align:left;padding:8px;font-size:0.7rem;color:#475569;text-transform:uppercase;">Status</th>
+            <th style="text-align:left;padding:8px;font-size:0.7rem;color:#475569;text-transform:uppercase;">Date</th>
+          </tr></thead><tbody>`;
+        d.orders.forEach(o => {
+          const statusColors = {Confirmed:'#818cf8',Processing:'#fde68a',Dispatched:'#67e8f9',Delivered:'#86efac',Cancelled:'#fca5a5'};
+          const col = statusColors[o.status] || '#94a3b8';
+          ordersHtml += `<tr style="border-top:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:8px;font-size:0.72rem;color:#a5b4fc;font-family:monospace;">${o.order_id.substring(0,14)}…</td>
+            <td style="padding:8px;font-size:0.78rem;color:#94a3b8;">${o.item_count} item(s)</td>
+            <td style="padding:8px;font-size:0.75rem;color:#64748b;text-transform:uppercase;">${o.payment_method}</td>
+            <td style="padding:8px;text-align:right;font-weight:700;color:#fbbf24;">₹${o.total.toLocaleString('en-IN')}</td>
+            <td style="padding:8px;"><span style="background:${col}22;color:${col};border:1px solid ${col}44;padding:3px 8px;border-radius:12px;font-size:0.68rem;font-weight:700;text-transform:uppercase;">${o.status}</span></td>
+            <td style="padding:8px;font-size:0.72rem;color:#64748b;">${o.date}</td>
+          </tr>`;
+        });
+        ordersHtml += '</tbody></table>';
+      }
+
+      document.getElementById('modal-body').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 18px;">
+            <div style="font-size:0.68rem;color:#475569;text-transform:uppercase;margin-bottom:6px;">Full Name</div>
+            <div style="color:#e2e8f0;font-weight:700;">${d.name}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 18px;">
+            <div style="font-size:0.68rem;color:#475569;text-transform:uppercase;margin-bottom:6px;">Phone</div>
+            <div style="color:#e2e8f0;font-weight:700;">${d.phone ? '+91' + d.phone : '—'}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 18px;">
+            <div style="font-size:0.68rem;color:#475569;text-transform:uppercase;margin-bottom:6px;">Email</div>
+            <div style="color:#818cf8;">${d.email}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 18px;">
+            <div style="font-size:0.68rem;color:#475569;text-transform:uppercase;margin-bottom:6px;">Joined</div>
+            <div style="color:#e2e8f0;">${d.joined}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 18px;grid-column:span 2;">
+            <div style="font-size:0.68rem;color:#475569;text-transform:uppercase;margin-bottom:6px;">📍 Address</div>
+            <div style="color:#94a3b8;font-size:0.85rem;line-height:1.6;">${d.address || '—'}</div>
+          </div>
+          <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:12px;padding:14px 18px;grid-column:span 2;">
+            <div style="font-size:0.68rem;color:#f87171;text-transform:uppercase;margin-bottom:6px;">🔒 Password Hash (bcrypt)</div>
+            <code style="font-size:0.7rem;color:#94a3b8;word-break:break-all;font-family:monospace;">${d.password_hash}</code>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+          <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:14px;text-align:center;">
+            <div style="font-size:1.5rem;font-weight:800;color:#a5b4fc;">${d.order_count}</div>
+            <div style="font-size:0.72rem;color:#64748b;">Total Orders</div>
+          </div>
+          <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:14px;text-align:center;">
+            <div style="font-size:1.3rem;font-weight:800;color:#fbbf24;">₹${d.total_spent.toLocaleString('en-IN')}</div>
+            <div style="font-size:0.72rem;color:#64748b;">Total Spent</div>
+          </div>
+          <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:14px;text-align:center;">
+            <div style="font-size:1.3rem;font-weight:800;color:#4ade80;">₹${d.avg_order > 0 ? Math.round(d.avg_order).toLocaleString('en-IN') : 0}</div>
+            <div style="font-size:0.72rem;color:#64748b;">Avg. Order Value</div>
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;">
+          <div style="font-size:0.72rem;color:#475569;text-transform:uppercase;margin-bottom:12px;">📦 Order History</div>
+          ${ordersHtml}
+        </div>
+      `;
+    })
+    .catch(() => {
+      document.getElementById('modal-body').innerHTML = '<p style="color:#f87171;padding:20px;">Failed to load user details.</p>';
+    });
+}
+
+function closeUserModal() {
+  document.getElementById('user-modal').style.display = 'none';
+}
+document.getElementById('user-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeUserModal();
+});
+</script>
+{% endblock %}

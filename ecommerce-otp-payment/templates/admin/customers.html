@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% block title %}Customers{% endblock %}
+{% block page_title %}Customers{% endblock %}
+{% block page_sub %}{{ customers|length }} registered accounts{% endblock %}
+
+{% block content %}
+<div class="table-card">
+  <div class="table-header">
+    <div>
+      <div class="section-title">👥 Customer Accounts</div>
+    </div>
+    <input class="table-search" id="cust-search" placeholder="🔍 Search customers…" oninput="tableSearch('cust-search','cust-table')">
+  </div>
+  <table class="admin-table" id="cust-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Orders</th>
+        <th>Total Spent</th>
+        <th>Joined</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in customers %}
+    <tr>
+      <td style="color:#475569;">{{ c.id }}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="topbar-avatar" style="width:32px;height:32px;font-size:0.78rem;">{{ c.name[0].upper() }}</div>
+          <strong>{{ c.name }}</strong>
+        </div>
+      </td>
+      <td style="color:#94a3b8;font-size:0.83rem;">{{ c.email }}</td>
+      <td style="font-size:0.83rem;">{% if c.phone %}+91{{ c.phone }}{% else %}<span style="color:#475569;">—</span>{% endif %}</td>
+      <td>
+        <strong style="color:#a5b4fc;">{{ c.order_count }}</strong>
+        <span style="color:#475569;font-size:0.75rem;"> order(s)</span>
+      </td>
+      <td><strong style="color:#fbbf24;">₹{{ "{:,.0f}".format(c.total_spent) }}</strong></td>
+      <td style="font-size:0.78rem;color:#64748b;">{{ c.created_at.strftime('%d %b %Y') }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" style="text-align:center;color:#475569;padding:40px;">No registered customers yet</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

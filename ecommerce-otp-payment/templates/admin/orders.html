@@ -1,0 +1,110 @@
+{% extends "admin/base.html" %}
+{% block title %}Orders{% endblock %}
+{% block page_title %}Orders{% endblock %}
+{% block page_sub %}Manage & update all customer orders{% endblock %}
+
+{% block content %}
+<div class="table-card">
+  <div class="table-header">
+    <div>
+      <div class="section-title">📦 All Orders <span style="color:#475569;font-size:0.85rem;">({{ orders|length }})</span></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <input class="table-search" id="order-search" placeholder="🔍 Search orders…" oninput="tableSearch('order-search','orders-table')">
+      <select class="filter-select" id="status-filter" onchange="filterByStatus()">
+        <option value="">All Statuses</option>
+        <option value="Confirmed">Confirmed</option>
+        <option value="Processing">Processing</option>
+        <option value="Dispatched">Dispatched</option>
+        <option value="Delivered">Delivered</option>
+        <option value="Cancelled">Cancelled</option>
+      </select>
+    </div>
+  </div>
+  <table class="admin-table" id="orders-table">
+    <thead>
+      <tr>
+        <th>Order ID</th>
+        <th>Customer</th>
+        <th>Phone</th>
+        <th>Items</th>
+        <th>Total</th>
+        <th>Payment</th>
+        <th>Status</th>
+        <th>Date</th>
+        <th>Update Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for o in orders %}
+    <tr data-status="{{ o.status }}">
+      <td>
+        <strong style="color:#a5b4fc;font-family:monospace;font-size:0.75rem;">{{ o.order_id }}</strong>
+      </td>
+      <td>
+        <strong>{{ o.customer_name }}</strong><br>
+        <span style="font-size:0.75rem;color:#475569;">{{ o.customer_email }}</span>
+      </td>
+      <td style="font-size:0.8rem;">+91{{ o.customer_phone }}</td>
+      <td>
+        {% for item in o.items[:2] %}
+        <div style="font-size:0.75rem;color:#94a3b8;">{{ item.get('emoji','📦') }} {{ item['name'][:20] }} ×{{ item['qty'] }}</div>
+        {% endfor %}
+        {% if o.items|length > 2 %}<div style="font-size:0.72rem;color:#475569;">+{{ o.items|length - 2 }} more</div>{% endif %}
+      </td>
+      <td><strong style="color:#fbbf24;">₹{{ "{:,.0f}".format(o.total) }}</strong></td>
+      <td style="text-transform:uppercase;font-size:0.75rem;">
+        {{ '💳' if o.payment_method=='card' else '📱' if o.payment_method=='upi' else '🏦' if o.payment_method=='netbanking' else '💵' }}
+        {{ o.payment_method }}
+      </td>
+      <td><span class="badge badge-{{ o.status.lower() }}">{{ o.status }}</span></td>
+      <td style="font-size:0.75rem;color:#64748b;">{{ o.created_at.strftime('%d %b %Y') }}<br>{{ o.created_at.strftime('%H:%M') }}</td>
+      <td>
+        <select class="filter-select" style="font-size:0.75rem;padding:5px 8px;background:#0f0f25;color:#e2e8f0;"
+                onchange="updateOrderStatus({{ o.id }}, this.value, this)">
+          {% for s in ['Confirmed','Processing','Dispatched','Delivered','Cancelled'] %}
+          <option value="{{ s }}" {% if s == o.status %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" style="text-align:center;color:#475569;padding:40px;">No orders found</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterByStatus() {
+  const val = document.getElementById('status-filter').value;
+  document.querySelectorAll('#orders-table tbody tr').forEach(row => {
+    const s = row.dataset.status || '';
+    row.style.display = (!val || s === val) ? '' : 'none';
+  });
+}
+
+function updateOrderStatus(orderId, newStatus, sel) {
+  sel.disabled = true;
+  fetch('/admin/orders/' + orderId + '/status', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({status: newStatus})
+  }).then(r => r.json()).then(d => {
+    sel.disabled = false;
+    if (d.success) {
+      showToast('Order updated to ' + newStatus);
+      // Update badge in the row
+      const badge = sel.closest('tr').querySelector('.badge');
+      badge.className = 'badge badge-' + newStatus.toLowerCase();
+      badge.textContent = newStatus;
+      sel.closest('tr').dataset.status = newStatus;
+    } else {
+      showToast('Update failed', false);
+    }
+  }).catch(() => { sel.disabled = false; showToast('Error', false); });
+}
+</script>
+{% endblock %}

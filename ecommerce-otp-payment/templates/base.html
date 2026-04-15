@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}NexusShop{% endblock %} — Shop Smarter. Pay Safer.</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+<!-- Apply saved theme BEFORE render to avoid flash -->
+<script>
+  (function(){
+    if(localStorage.getItem('nexus-theme')==='light') document.body.classList.add('light-theme');
+  })();
+</script>
+
+<!-- ── NAVBAR ── -->
+<nav class="navbar" id="navbar">
+  <a href="/" class="nav-brand"><span>🛍️</span> NexusShop</a>
+
+  <form class="nav-search" action="/" method="get" id="search-form">
+    <svg width="16" height="16" fill="none" stroke="#64748b" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" name="q" placeholder="Search products…" value="{{ request.args.get('q','') }}" autocomplete="off" id="search-input">
+  </form>
+
+  <div class="nav-actions">
+    {% if session.get('user_id') %}
+    <span style="color:var(--text-secondary);font-size:0.85rem;">👤 {{ session.get('user_name','') }}</span>
+    <a href="/logout" style="color:var(--text-muted);font-size:0.83rem;font-weight:600;padding:0.45rem 0.9rem;border:1px solid var(--border);border-radius:8px;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">Sign Out</a>
+    {% else %}
+    <a href="/login" style="color:var(--text-secondary);font-size:0.85rem;font-weight:600;padding:0.45rem 0.9rem;border-radius:8px;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-secondary)'">Sign In</a>
+    <a href="/register" style="background:rgba(99,102,241,0.12);color:#818cf8;font-size:0.83rem;font-weight:700;padding:0.45rem 0.9rem;border:1px solid rgba(99,102,241,0.3);border-radius:8px;transition:all 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.2)'" onmouseout="this.style.background='rgba(99,102,241,0.12)'">Register</a>
+    {% endif %}
+    <a href="/orders" style="color:var(--text-secondary);font-size:0.85rem;font-weight:600;padding:0.45rem 0.9rem;border-radius:8px;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-secondary)'">📦 Orders</a>
+    <a href="/api/wishlist" class="wishlist-nav-btn" id="wl-nav-btn" title="Wishlist">
+      ❤️ <span class="wl-badge" id="wl-count">0</span>
+    </a>
+    <button id="theme-toggle" onclick="toggleTheme()" class="theme-toggle-btn" title="Toggle Dark/Light mode">🌙</button>
+    <a href="/cart" class="cart-btn" id="cart-btn">
+      🛒 Cart
+      <span class="cart-badge" id="cart-badge">{{ cart_count|default(0) }}</span>
+    </a>
+  </div>
+</nav>
+
+<!-- ── TOAST CONTAINER ── -->
+<div class="toast-container" id="toast-container"></div>
+
+{% block content %}{% endblock %}
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div style="margin-bottom:0.4rem;">🛍️ <strong>NexusShop</strong> — Shop Smarter. Pay Safer.</div>
+  <div>© 2025 NexusShop · Secure Payments with Email &amp; SMS OTP Verification</div>
+</footer>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  // ── Socket.IO ──
+  const socket = io();
+  socket.on('cart_update', (data) => {
+    const badge = document.getElementById('cart-badge');
+    if (badge) { badge.textContent = data.count; badgeBump(); }
+  });
+  socket.on('order_status', (data) => {
+    showToast(`📦 Order ${data.order_id}: ${data.status}`, 'info');
+    updateStatusTrack(data.status);
+  });
+
+  // ── Navbar scroll effect ──
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 10);
+  });
+
+  // ── Cart badge bump animation ──
+  function badgeBump() {
+    const b = document.getElementById('cart-badge');
+    if (!b) return;
+    b.classList.add('bump');
+    setTimeout(() => b.classList.remove('bump'), 400);
+  }
+
+  // ── Toast ──
+  function showToast(msg, type='info', duration=3500) {
+    const icons = { success:'✅', error:'❌', info:'ℹ️' };
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+    c.appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(20px)'; t.style.transition='all 0.3s'; setTimeout(()=>t.remove(),300); }, duration);
+  }
+
+  // ── Add to cart ──
+  function addToCart(productId, btn) {
+    fetch('/cart/add', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({product_id: productId, qty: 1})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const badge = document.getElementById('cart-badge');
+        if (badge) { badge.textContent = data.cart_count; badgeBump(); }
+        btn.textContent = '✓ Added';
+        btn.classList.add('added');
+        showToast('Added to cart!', 'success');
+        setTimeout(()=>{ btn.textContent='Add to Cart'; btn.classList.remove('added'); }, 2000);
+      }
+    });
+  }
+
+  // ── Update order status tracker (success page) ──
+  function updateStatusTrack(status) {
+    const map = { 'Confirmed':0, 'Processing':1, 'Dispatched':2, 'Delivered':3 };
+    const idx = map[status] ?? -1;
+    document.querySelectorAll('.status-dot').forEach((dot, i) => {
+      if (i < idx) { dot.classList.remove('active'); dot.classList.add('done'); dot.textContent = '✓'; }
+      else if (i === idx) { dot.classList.add('active'); }
+    });
+    const lbl = document.querySelector(`.status-step:nth-child(${idx+1}) .status-label`);
+    if (lbl) lbl.style.color = 'var(--accent)';
+  }
+  // Load wishlist count
+  fetch('/api/wishlist').then(r=>r.json()).then(d=>{
+    const el = document.getElementById('wl-count');
+    if (el) el.textContent = d.count > 0 ? d.count : '';
+    if (el && d.count > 0) el.style.display = 'flex'; else if (el) el.style.display='none';
+  }).catch(()=>{});
+
+  // ── Dark / Light Theme Toggle ──
+  function toggleTheme() {
+    const isLight = document.body.classList.toggle('light-theme');
+    localStorage.setItem('nexus-theme', isLight ? 'light' : 'dark');
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+  }
+  // Set correct icon on page load
+  window.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('theme-toggle');
+    if (btn && document.body.classList.contains('light-theme')) btn.textContent = '☀️';
+  });
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

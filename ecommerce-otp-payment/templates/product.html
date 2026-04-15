@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }}{% endblock %}
+{% block content %}
+<div class="page-container" style="max-width:1280px;">
+
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb">
+    <a href="/">Home</a>
+    <span class="bc-sep">›</span>
+    <a href="/?category={{ product.category }}">{{ product.category }}</a>
+    <span class="bc-sep">›</span>
+    <span>{{ product.name }}</span>
+  </nav>
+
+  <!-- ── PRODUCT MAIN LAYOUT ── -->
+  <div class="pd-layout">
+
+    <!-- LEFT: Image Gallery -->
+    <div class="pd-gallery">
+      <!-- Main image with fallback -->
+      <div class="pd-main-img-wrap">
+        {% if product.image_url %}
+        <img id="main-img"
+             src="{{ product.image_url }}&w=700&q=80"
+             alt="{{ product.name }}" class="pd-main-img"
+             onerror="this.style.display='none';document.getElementById('main-emoji').style.display='flex'">
+        <div id="main-emoji" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:5rem;background:{{ product.image_color }}22;border-radius:16px;">{{ product.image_emoji }}</div>
+        {% else %}
+        <div id="main-emoji" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;font-size:5rem;background:{{ product.image_color }}22;border-radius:16px;">{{ product.image_emoji }}</div>
+        {% endif %}
+        {% if product.badge %}
+        <span class="pd-badge-overlay {{ product.badge|lower }}">{{ product.badge }}</span>
+        {% endif %}
+        <button class="pd-wishlist-btn {% if in_wishlist %}active{% endif %}" id="wl-btn"
+                onclick="toggleWishlist({{ product.id }})" title="Add to Wishlist">
+          <span id="wl-icon">{% if in_wishlist %}❤️{% else %}🤍{% endif %}</span>
+        </button>
+      </div>
+      <!-- Gallery thumbnails: main + 3 variations -->
+      <div class="pd-thumbs">
+        {% if product.image_url %}
+        <img class="pd-thumb active" src="{{ product.image_url }}&w=120&q=70" alt="View 1" onclick="setImg(this,'{{ product.image_url }}&w=700&q=80')"
+             onerror="this.style.display='none'">
+        <img class="pd-thumb" src="{{ product.image_url }}&w=120&q=70&sat=-50" alt="View 2" onclick="setImg(this,'{{ product.image_url }}&w=700&q=80&sat=-50')"
+             onerror="this.style.display='none'">
+        <img class="pd-thumb" src="{{ product.image_url }}&w=120&q=70&blur=1" alt="View 3" onclick="setImg(this,'{{ product.image_url }}&w=700&q=80&blur=1')"
+             onerror="this.style.display='none'">
+        <img class="pd-thumb" src="{{ product.image_url }}&w=120&q=70&bri=10" alt="View 4" onclick="setImg(this,'{{ product.image_url }}&w=700&q=80&bri=10')"
+             onerror="this.style.display='none'">
+        {% else %}
+        <div class="pd-thumb active" style="display:flex;align-items:center;justify-content:center;font-size:1.8rem;background:{{ product.image_color }}22;">{{ product.image_emoji }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- RIGHT: Product Info -->
+    <div class="pd-info">
+      <div class="pd-brand">{{ product.brand }}</div>
+      <h1 class="pd-name">{{ product.name }}</h1>
+
+      <!-- Rating Row -->
+      <div class="pd-rating-row">
+        <div class="pd-stars">
+          {% for i in range(5) %}
+            {% if i < product.rating|int %}⭐{% elif (product.rating - i) >= 0.5 %}⭐{% else %}☆{% endif %}
+          {% endfor %}
+        </div>
+        <span class="pd-rating-num">{{ product.rating }}</span>
+        <a href="#reviews" class="pd-review-link">{{ total_reviews }} ratings</a>
+        <span class="pd-stock-pill {% if product.stock == 0 %}out{% elif product.stock < 10 %}low{% else %}in{% endif %}">
+          {% if product.stock == 0 %}Out of Stock{% elif product.stock < 10 %}Only {{ product.stock }} left{% else %}In Stock{% endif %}
+        </span>
+      </div>
+
+      <!-- Price -->
+      <div class="pd-price-block">
+        <span class="pd-price-main">{{ currency }}{{ product.price|int }}</span>
+        {% if product.original_price %}
+        <span class="pd-price-mrp">MRP <s>{{ currency }}{{ product.original_price|int }}</s></span>
+        <span class="pd-discount-pill">{{ ((1 - product.price/product.original_price)*100)|int }}% OFF</span>
+        {% endif %}
+      </div>
+      {% if product.original_price %}
+      <div class="pd-saving">You save: <strong>{{ currency }}{{ (product.original_price - product.price)|int }}</strong></div>
+      {% endif %}
+
+      <!-- Delivery Strip -->
+      <div class="pd-delivery-strip">
+        <div class="pd-del-item"><span>🚚</span><div><strong>Free Delivery</strong><small>Orders above ₹499</small></div></div>
+        <div class="pd-del-item"><span>↩️</span><div><strong>7-Day Returns</strong><small>Easy return policy</small></div></div>
+        <div class="pd-del-item"><span>🛡️</span><div><strong>Genuine Product</strong><small>100% authentic</small></div></div>
+      </div>
+
+      <!-- Qty + Actions -->
+      {% if product.stock > 0 %}
+      <div class="pd-qty-row">
+        <span class="pd-qty-label">Quantity:</span>
+        <div class="pd-qty-ctrl">
+          <button onclick="changeQty(-1)">−</button>
+          <span id="qty-val">1</span>
+          <button onclick="changeQty(1)">+</button>
+        </div>
+      </div>
+      <div class="pd-actions">
+        <button class="btn btn-primary pd-btn" id="add-cart-btn" onclick="addToCartDetail({{ product.id }})">🛒 Add to Cart</button>
+        <button class="btn pd-btn-gold pd-btn" onclick="buyNow({{ product.id }})">⚡ Buy Now</button>
+      </div>
+      {% else %}
+      <div class="pd-out-btn">❌ Currently Out of Stock</div>
+      {% endif %}
+
+      <!-- Key Highlights -->
+      {% if product.highlights_list %}
+      <div class="pd-highlights">
+        <div class="pd-section-label">Key Highlights</div>
+        <ul class="pd-hl-list">
+          {% for h in product.highlights_list %}
+          <li><span class="hl-dot">✦</span> {{ h }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── TABS: Description + Specs ── -->
+  <div class="pd-tabs-wrap">
+    <div class="pd-tabs-nav">
+      <button class="pd-tab-btn active" onclick="showTab('desc',this)">📋 Description</button>
+      <button class="pd-tab-btn" onclick="showTab('specs',this)">🔧 Specifications</button>
+    </div>
+    <div class="pd-tab-pane active" id="tab-desc">
+      <p class="pd-desc-text">{{ product.description }}</p>
+    </div>
+    <div class="pd-tab-pane" id="tab-specs">
+      <table class="pd-specs-table">
+        {% for key, val in product.specs.items() %}
+        <tr>
+          <td class="spec-key">{{ key }}</td>
+          <td class="spec-val">{{ val }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <!-- ── REVIEWS ── -->
+  <div class="pd-reviews-section" id="reviews">
+    <div class="pd-section-title">⭐ Customer Reviews</div>
+
+    <!-- Rating Summary -->
+    <div class="review-summary-wrap">
+      <div class="review-big-score">
+        <div class="rbs-number">{{ product.rating }}</div>
+        <div class="rbs-stars">⭐⭐⭐⭐⭐</div>
+        <div class="rbs-count">{{ total_reviews }} reviews</div>
+      </div>
+      <div class="review-bars">
+        {% for star in [5, 4, 3, 2, 1] %}
+        <div class="rb-row">
+          <span class="rb-label">{{ star }}★</span>
+          <div class="rb-track">
+            <div class="rb-fill {% if star == 5 %}five{% elif star == 4 %}four{% elif star == 3 %}three{% else %}low{% endif %}"
+                 style="width:{{ rating_breakdown[star]|round(0)|int }}%"></div>
+          </div>
+          <span class="rb-count">{{ rating_counts[star] }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="review-write-wrap">
+        <div style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:0.8rem;">Share your experience with this product</div>
+        <button class="btn btn-outline-accent" onclick="document.getElementById('review-modal').style.display='flex'">
+          ✍️ Write a Review
+        </button>
+      </div>
+    </div>
+
+    <!-- Review Cards -->
+    <div class="review-cards" id="reviews-list">
+      {% if reviews %}
+        {% for r in reviews %}
+        <div class="review-card">
+          <div class="rc-header">
+            <div class="rc-avatar">{{ r.user_name[0] }}</div>
+            <div class="rc-meta">
+              <div class="rc-name">{{ r.user_name }}</div>
+              <div class="rc-date">{{ r.created_at.strftime('%d %b %Y') }}</div>
+            </div>
+            {% if r.verified %}
+            <span class="rc-verified">✅ Verified Purchase</span>
+            {% endif %}
+          </div>
+          <div class="rc-stars">
+            {% for i in range(5) %}{% if i < r.rating %}⭐{% else %}☆{% endif %}{% endfor %}
+          </div>
+          {% if r.title %}<div class="rc-title">{{ r.title }}</div>{% endif %}
+          <div class="rc-body">{{ r.body }}</div>
+          <div class="rc-helpful">
+            <span>Was this helpful?</span>
+            <button class="rc-helpful-btn" onclick="markHelpful(this)">👍 Yes ({{ r.helpful }})</button>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="no-reviews">
+          <div style="font-size:2.5rem;margin-bottom:0.8rem;">💬</div>
+          <div style="font-weight:600;margin-bottom:0.3rem;">No reviews yet</div>
+          <div style="color:var(--text-muted);font-size:0.88rem;">Be the first to review this product!</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── RELATED PRODUCTS ── -->
+  {% if related %}
+  <div class="pd-related-section">
+    <div class="pd-section-title">🔗 Similar Products</div>
+    <div class="related-scroll">
+      {% for rp in related %}
+      <a href="/product/{{ rp.id }}" class="related-card">
+        <div class="related-img">
+          {% if rp.image_url %}
+          <img src="{{ rp.image_url }}" alt="{{ rp.name }}" loading="lazy">
+          {% else %}
+          <div class="related-emoji-box" style="background:{{ rp.image_color }}22">{{ rp.image_emoji }}</div>
+          {% endif %}
+          {% if rp.badge %}<span class="related-badge">{{ rp.badge }}</span>{% endif %}
+        </div>
+        <div class="related-info">
+          <div class="related-name">{{ rp.name }}</div>
+          <div class="related-brand">{{ rp.brand }}</div>
+          <div class="related-price">₹{{ rp.price|int }}
+            {% if rp.original_price %}<s class="related-mrp">₹{{ rp.original_price|int }}</s>{% endif %}
+          </div>
+          <div class="related-rating">⭐ {{ rp.rating }} ({{ rp.reviews }})</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- ── WRITE REVIEW MODAL ── -->
+<div class="modal-overlay" id="review-modal" onclick="if(event.target===this) this.style.display='none'">
+  <div class="modal-box">
+    <h2 class="modal-title">✍️ Write a Review</h2>
+    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.2rem;">for <strong style="color:var(--text-primary)">{{ product.name }}</strong></p>
+
+    <div class="form-group">
+      <label class="form-label">Your Name *</label>
+      <input class="form-input" id="rv-name" type="text" placeholder="e.g. Rahul S.">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Your Rating *</label>
+      <div class="star-picker" id="star-picker">
+        {% for i in range(1,6) %}
+        <span class="star-pick" data-val="{{ i }}" onclick="setRating({{ i }})">☆</span>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Review Title</label>
+      <input class="form-input" id="rv-title" type="text" placeholder="Summarize your experience">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Your Review *</label>
+      <textarea class="form-textarea" id="rv-body" rows="4" placeholder="Share what you liked or disliked about this product..."></textarea>
+    </div>
+    <div style="display:flex;gap:0.8rem;flex-wrap:wrap;">
+      <button class="btn btn-primary" style="flex:1" onclick="submitReview({{ product.id }})">Submit Review</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('review-modal').style.display='none'">Cancel</button>
+    </div>
+    <div id="rv-msg" style="margin-top:0.6rem;font-size:0.85rem;"></div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let selectedQty = 1;
+let reviewRating = 0;
+
+function changeQty(delta) {
+  const max = {{ product.stock }};
+  selectedQty = Math.max(1, Math.min(max, selectedQty + delta));
+  document.getElementById('qty-val').textContent = selectedQty;
+}
+
+function setImg(thumb, url) {
+  document.getElementById('main-img').src = url || thumb.src;
+  document.querySelectorAll('.pd-thumb').forEach(t => t.classList.remove('active'));
+  thumb.classList.add('active');
+}
+
+function addToCartDetail(pid) {
+  const btn = document.getElementById('add-cart-btn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  fetch('/cart/add', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({product_id: pid, qty: selectedQty})
+  }).then(r => r.json()).then(d => {
+    btn.disabled = false; btn.textContent = '🛒 Add to Cart';
+    if (d.success) {
+      const badge = document.getElementById('cart-badge');
+      if (badge) { badge.textContent = d.cart_count; badgeBump(); }
+      showToast(`Added ${selectedQty} item(s) to cart! 🛒`, 'success');
+    }
+  });
+}
+
+function buyNow(pid) {
+  fetch('/cart/add', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({product_id: pid, qty: selectedQty})
+  }).then(r => r.json()).then(d => {
+    if (d.success) window.location.href = '/checkout';
+  });
+}
+
+function toggleWishlist(pid) {
+  fetch('/api/wishlist/toggle', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({product_id: pid})
+  }).then(r => r.json()).then(d => {
+    const btn  = document.getElementById('wl-btn');
+    const icon = document.getElementById('wl-icon');
+    if (d.in_wishlist) {
+      btn.classList.add('active'); icon.textContent = '❤️';
+      showToast('Added to Wishlist ❤️', 'success');
+    } else {
+      btn.classList.remove('active'); icon.textContent = '🤍';
+      showToast('Removed from Wishlist', 'info');
+    }
+  });
+}
+
+function showTab(tab, btn) {
+  document.querySelectorAll('.pd-tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.pd-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+function setRating(val) {
+  reviewRating = val;
+  document.querySelectorAll('.star-pick').forEach((s, i) => {
+    s.textContent = i < val ? '⭐' : '☆';
+    s.classList.toggle('selected', i < val);
+  });
+}
+
+function submitReview(pid) {
+  const name  = document.getElementById('rv-name').value.trim();
+  const title = document.getElementById('rv-title').value.trim();
+  const body  = document.getElementById('rv-body').value.trim();
+  const msg   = document.getElementById('rv-msg');
+  if (!name || !body || !reviewRating) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = '⚠️ Please fill your name, select a rating, and write a review.';
+    return;
+  }
+  fetch(`/api/product/${pid}/review`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({user_name: name, rating: reviewRating, title, body})
+  }).then(r => r.json()).then(d => {
+    if (d.success) {
+      document.getElementById('review-modal').style.display = 'none';
+      showToast('Review submitted! Thank you 🎉', 'success');
+      const rev    = d.review;
+      const stars  = '⭐'.repeat(rev.rating) + '☆'.repeat(5 - rev.rating);
+      const html   = `
+        <div class="review-card" style="animation:fadeSlideIn 0.5s ease">
+          <div class="rc-header">
+            <div class="rc-avatar">${rev.user_name[0]}</div>
+            <div class="rc-meta"><div class="rc-name">${rev.user_name}</div><div class="rc-date">${rev.created_at}</div></div>
+          </div>
+          <div class="rc-stars">${stars}</div>
+          ${rev.title ? `<div class="rc-title">${rev.title}</div>` : ''}
+          <div class="rc-body">${rev.body}</div>
+          <div class="rc-helpful"><span>Was this helpful?</span><button class="rc-helpful-btn">👍 Yes (0)</button></div>
+        </div>`;
+      const list = document.getElementById('reviews-list');
+      list.innerHTML = html + list.innerHTML;
+    } else {
+      msg.style.color = 'var(--red)'; msg.textContent = '❌ ' + d.message;
+    }
+  });
+}
+
+function markHelpful(btn) {
+  const m = btn.textContent.match(/\((\d+)\)/);
+  if (m) { btn.textContent = `👍 Yes (${parseInt(m[1]) + 1})`; btn.disabled = true; }
+}
+</script>
+{% endblock %}

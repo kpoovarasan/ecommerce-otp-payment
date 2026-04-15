@@ -1,0 +1,131 @@
+{% extends "admin/base.html" %}
+{% block title %}Products{% endblock %}
+{% block page_title %}Products{% endblock %}
+{% block page_sub %}Manage inventory — {{ products|length }} products total{% endblock %}
+
+{% block content %}
+<div class="table-card">
+  <div class="table-header">
+    <div>
+      <div class="section-title">🛒 Product Inventory</div>
+      <div class="section-sub">Update stock, view details, manage catalogue</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <input class="table-search" id="prod-search" placeholder="🔍 Search products…" oninput="tableSearch('prod-search','prod-table')">
+      <select class="filter-select" id="cat-filter" onchange="filterByCategory()">
+        <option value="">All Categories</option>
+        {% for c in categories %}
+        <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+      <select class="filter-select" id="stock-filter" onchange="filterByStock()" style="background:#0f0f25;color:#e2e8f0;">
+        <option value="">All Stock</option>
+        <option value="low">Low Stock (≤10)</option>
+        <option value="out">Out of Stock</option>
+      </select>
+    </div>
+  </div>
+  <table class="admin-table" id="prod-table">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Category</th>
+        <th>Brand</th>
+        <th>Price</th>
+        <th>Original</th>
+        <th>Discount</th>
+        <th>Rating</th>
+        <th>Stock</th>
+        <th>Update Stock</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in products %}
+    <tr data-cat="{{ p.category }}" data-stock="{{ p.stock }}">
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="prod-thumb">
+            {% if p.image_url %}
+            <img src="{{ p.image_url }}&w=80&q=60" alt="" onerror="this.style.display='none'">
+            {% else %}
+            {{ p.image_emoji }}
+            {% endif %}
+          </div>
+          <div>
+            <strong>{{ p.name[:35] }}{% if p.name|length > 35 %}…{% endif %}</strong>
+            {% if p.badge %}<span class="badge badge-{{ p.badge.lower() }}" style="margin-left:6px;font-size:0.65rem;">{{ p.badge }}</span>{% endif %}
+          </div>
+        </div>
+      </td>
+      <td style="font-size:0.8rem;">{{ p.category }}</td>
+      <td style="font-size:0.8rem;color:#64748b;">{{ p.brand }}</td>
+      <td><strong style="color:#fbbf24;">₹{{ "{:,.0f}".format(p.price) }}</strong></td>
+      <td style="color:#475569;font-size:0.8rem;">{% if p.original_price %}₹{{ "{:,.0f}".format(p.original_price) }}{% else %}—{% endif %}</td>
+      <td>
+        {% if p.original_price %}
+        <span style="color:#4ade80;font-weight:700;font-size:0.8rem;">{{ ((1 - p.price/p.original_price)*100)|int }}% off</span>
+        {% else %}—{% endif %}
+      </td>
+      <td style="font-size:0.8rem;">
+        ⭐ {{ "%.1f"|format(p.rating) }}
+        <span style="color:#475569;">({{ p.reviews }})</span>
+      </td>
+      <td>
+        {% if p.stock == 0 %}
+          <span class="badge badge-out">Out</span>
+        {% elif p.stock <= 10 %}
+          <span class="badge badge-low">{{ p.stock }}</span>
+        {% else %}
+          <span style="color:#4ade80;font-weight:600;">{{ p.stock }}</span>
+        {% endif %}
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="stock-input" id="stock-{{ p.id }}"
+                 value="{{ p.stock }}" min="0" max="9999">
+          <button class="btn btn-success btn-sm" onclick="updateStock({{ p.id }})">✓</button>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterByCategory() {
+  const val = document.getElementById('cat-filter').value;
+  document.querySelectorAll('#prod-table tbody tr').forEach(row => {
+    // Decode HTML entities in data-cat (& -> &amp; in HTML)
+    const cat = row.dataset.cat || '';
+    row.style.display = (!val || cat === val) ? '' : 'none';
+  });
+}
+function filterByStock() {
+  const val = document.getElementById('stock-filter').value;
+  document.querySelectorAll('#prod-table tbody tr').forEach(row => {
+    const s = parseInt(row.dataset.stock);
+    if (!val) { row.style.display = ''; }
+    else if (val === 'out') { row.style.display = s === 0 ? '' : 'none'; }
+    else if (val === 'low') { row.style.display = (s > 0 && s <= 10) ? '' : 'none'; }
+  });
+}
+function updateStock(pid) {
+  const val = parseInt(document.getElementById('stock-' + pid).value);
+  if (isNaN(val) || val < 0) { showToast('Invalid stock value', false); return; }
+  fetch('/admin/products/' + pid + '/stock', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({stock: val})
+  }).then(r => r.json()).then(d => {
+    if (d.success) {
+      showToast('Stock updated to ' + val);
+      const row = document.getElementById('stock-' + pid).closest('tr');
+      row.dataset.stock = val;
+    } else { showToast('Update failed', false); }
+  }).catch(() => showToast('Error', false));
+}
+</script>
+{% endblock %}

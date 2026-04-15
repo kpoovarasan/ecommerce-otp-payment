@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Shop{% endblock %}
+{% block content %}
+
+<!-- Hero -->
+<section class="hero">
+  <h1>Discover <span>Amazing Products</span></h1>
+  <p>Premium quality items with OTP-verified secure payments 🔐</p>
+</section>
+
+<!-- Category Tabs -->
+<div class="category-tabs">
+  {% for cat in categories %}
+  <a href="/?category={{ cat | urlencode }}" class="cat-tab {% if cat == active_category %}active{% endif %}">
+    {% if cat == 'All' %}🏷️{% elif cat == 'Electronics' %}⚡{% elif cat == "Men's Fashion" %}👔{% elif cat == "Women's Fashion" %}👗{% elif cat == 'Fashion' %}👗{% elif cat == 'Home & Living' %}🏠{% elif cat == 'Kitchen & Dining' %}🍳{% elif cat == 'Beauty & Skincare' %}✨{% elif cat == 'Sports & Fitness' %}🏋️{% elif cat == 'Health & Wellness' %}💊{% elif cat == 'Stationery' %}📚{% elif cat == 'Toys & Gaming' %}🎮{% else %}🛍️{% endif %}
+    {{ cat }}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Product Grid -->
+<div class="product-grid">
+  {% if products %}
+    {% for p in products %}
+    <div class="product-card" id="product-{{ p.id }}">
+
+      <!-- Product Image -->
+      <div class="product-image-wrap">
+        {% if p.image_url %}
+        <img class="product-real-img" src="{{ p.image_url }}" alt="{{ p.name }}" loading="lazy"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="product-emoji-box" style="display:none;background:linear-gradient(135deg,{{ p.image_color }}22,{{ p.image_color }}11)">
+          {{ p.image_emoji }}
+        </div>
+        {% else %}
+        <div class="product-emoji-box" style="background:linear-gradient(135deg,{{ p.image_color }}22,{{ p.image_color }}11)">
+          {{ p.image_emoji }}
+        </div>
+        {% endif %}
+
+        {% if p.badge %}
+        <span class="product-badge {% if p.badge=='Sale' %}sale{% elif p.badge=='New' %}new{% elif p.badge=='Eco' %}eco{% endif %}">
+          {{ p.badge }}
+        </span>
+        {% endif %}
+
+        <!-- Wishlist Heart -->
+        <button class="card-wishlist-btn" data-pid="{{ p.id }}" onclick="toggleWishlistCard({{ p.id }}, this)" title="Wishlist">
+          🤍
+        </button>
+
+        <!-- Quick View on hover -->
+        <a href="/product/{{ p.id }}" class="quick-view-overlay">👁 View Details</a>
+      </div>
+
+      <div class="product-info">
+        <div class="product-category">{{ p.category }}</div>
+        {% if p.brand %}<div class="product-brand-label">{{ p.brand }}</div>{% endif %}
+        <a href="/product/{{ p.id }}" class="product-name-link">
+          <div class="product-name">{{ p.name }}</div>
+        </a>
+        <div class="product-rating">
+          <span class="stars">
+            {% for i in range(5) %}
+              {% if i < p.rating|int %}⭐{% else %}☆{% endif %}
+            {% endfor %}
+          </span>
+          <span class="rating-count">({{ p.reviews }})</span>
+        </div>
+        <div class="product-price">
+          <span class="price-current">₹{{ p.price|int }}</span>
+          {% if p.original_price %}
+          <span class="price-original">₹{{ p.original_price|int }}</span>
+          <span class="price-discount">{{ ((1 - p.price/p.original_price)*100)|int }}% off</span>
+          {% endif %}
+        </div>
+        <div class="stock-indicator {% if p.stock < 10 %}stock-low{% else %}stock-ok{% endif %}">
+          {% if p.stock == 0 %}❌ Out of Stock
+          {% elif p.stock < 10 %}⚠️ Only {{ p.stock }} left!
+          {% else %}✅ In Stock{% endif %}
+        </div>
+
+        <!-- Dual action buttons -->
+        <div class="card-action-row">
+          <button class="btn-add-cart" onclick="addToCart({{ p.id }}, this)"
+            {% if p.stock == 0 %}disabled style="opacity:0.4"{% endif %}>
+            {% if p.stock == 0 %}Out of Stock{% else %}🛒 Add{% endif %}
+          </button>
+          <a href="/product/{{ p.id }}" class="btn-view-detail">View</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="empty-state" style="grid-column:1/-1;">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-title">No products found</div>
+    <div class="empty-sub">Try a different search or category.</div>
+    <a href="/" class="btn btn-primary">Browse All</a>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+// Load wishlist state on page load
+fetch('/api/wishlist').then(r=>r.json()).then(d=>{
+  d.product_ids.forEach(pid => {
+    const btn = document.querySelector(`.card-wishlist-btn[data-pid="${pid}"]`);
+    if (btn) { btn.textContent = '❤️'; btn.classList.add('active'); }
+  });
+});
+
+function toggleWishlistCard(pid, btn) {
+  fetch('/api/wishlist/toggle', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({product_id: pid})
+  }).then(r => r.json()).then(d => {
+    if (d.in_wishlist) {
+      btn.textContent = '❤️'; btn.classList.add('active');
+      showToast('Added to Wishlist ❤️', 'success');
+    } else {
+      btn.textContent = '🤍'; btn.classList.remove('active');
+      showToast('Removed from Wishlist', 'info');
+    }
+  });
+}
+</script>
+{% endblock %}

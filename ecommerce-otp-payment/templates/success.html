@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Order Confirmed!{% endblock %}
+{% block content %}
+
+<!-- CONFETTI -->
+<div class="confetti-container" id="confetti"></div>
+
+<div class="success-page">
+  <div class="success-hero">
+    <div class="success-icon">🎉</div>
+    <div class="success-title">Order Confirmed!</div>
+    <div class="success-sub">Thank you! Your payment was verified and your order is placed.</div>
+  </div>
+
+  <!-- Order Card -->
+  <div class="order-card">
+    <div class="order-card-header">
+      <div>
+        <div class="order-number">ORDER ID</div>
+        <div style="font-size:1.1rem;font-weight:800;color:white;">{{ order.order_id }}</div>
+      </div>
+      <div class="order-status-badge" id="status-badge">{{ order.status }}</div>
+    </div>
+    <div class="order-card-body">
+      <!-- Status Tracker -->
+      <div class="status-track">
+        {% for step in [('Confirmed','✅'), ('Processing','⚙️'), ('Dispatched','🚚'), ('Delivered','🏠')] %}
+        <div class="status-step">
+          <div class="status-dot {% if loop.index == 1 %}active{% endif %}">{{ step[1] if loop.index == 1 else '' }}</div>
+          <div class="status-label">{{ step[0] }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Order Items -->
+      <div style="margin-bottom:1rem;">
+        {% for item in order.items %}
+        <div class="order-item-row">
+          <span style="font-size:1.4rem;">{{ item.emoji }}</span>
+          <div style="flex:1;"><div style="font-weight:600;font-size:0.9rem;">{{ item.name }}</div><div style="color:var(--text-muted);font-size:0.78rem;">Qty: {{ item.qty }}</div></div>
+          <div style="font-weight:700;">{{ currency }}{{ (item.price * item.qty)|int }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Summary -->
+      <div style="border-top:1px solid var(--border);padding-top:0.8rem;">
+        <div class="summary-row" style="margin-bottom:0.5rem;"><span style="color:var(--text-secondary);">Subtotal</span><span>{{ currency }}{{ order.subtotal|int }}</span></div>
+        <div class="summary-row" style="margin-bottom:0.5rem;"><span style="color:var(--text-secondary);">GST (18%)</span><span>{{ currency }}{{ order.tax|int }}</span></div>
+        <div class="summary-row" style="font-size:1.1rem;font-weight:800;border-top:1px solid var(--border);padding-top:0.6rem;"><span>Total Paid</span><span style="color:var(--gold)">{{ currency }}{{ order.total|int }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Customer Details -->
+  <div class="order-card">
+    <div class="order-card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:0.88rem;">
+        <div><div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:0.2rem;">CUSTOMER</div><div style="font-weight:600;">{{ order.customer_name }}</div></div>
+        <div><div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:0.2rem;">EMAIL</div><div style="font-weight:600;">{{ order.customer_email }}</div></div>
+        <div><div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:0.2rem;">PHONE</div><div style="font-weight:600;">+91{{ order.customer_phone }}</div></div>
+        <div><div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:0.2rem;">PAYMENT</div><div style="font-weight:600;">{{ order.payment_method|upper }} {% if order.payment_detail %}({{ order.payment_detail }}){% endif %}</div></div>
+        <div style="grid-column:1/-1;"><div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:0.2rem;">DELIVERY ADDRESS</div><div style="font-weight:600;line-height:1.5;">{{ order.address }}</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Status Banner -->
+  <div id="live-status-banner" style="display:none;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:0.9rem 1.2rem;text-align:center;font-size:0.88rem;color:var(--text-secondary);margin-bottom:1rem;">
+    <span id="live-status-text">⚙️ Your order is being processed…</span>
+  </div>
+
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+    <a href="/" class="btn btn-primary" style="flex:1;justify-content:center;">🛍️ Continue Shopping</a>
+    <a href="/orders" class="btn btn-secondary" style="flex:1;justify-content:center;">📦 View Orders</a>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Confetti
+(function(){
+  const c=document.getElementById('confetti');
+  const colors=['#6366f1','#8b5cf6','#fbbf24','#f97316','#22c55e','#60a5fa','#ec4899'];
+  for(let i=0;i<80;i++){
+    const p=document.createElement('div');
+    p.className='confetti-piece';
+    p.style.cssText=`left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()>0.5?'50%':'2px'};--dur:${2+Math.random()*3}s;--delay:${Math.random()*2}s;`;
+    c.appendChild(p);
+  }
+  setTimeout(()=>c.remove(), 6000);
+})();
+
+// Live order status updates from Socket.IO
+const orderId='{{ order.order_id }}';
+const banner=document.getElementById('live-status-banner');
+const liveText=document.getElementById('live-status-text');
+let statusIndex=0;
+const statusLabels=['Confirmed','Processing','Dispatched','Delivered'];
+
+// Show live status banner after short delay
+setTimeout(()=>{ banner.style.display='block'; },1500);
+
+// Listen for socket events
+socket.on('order_status',(data)=>{
+  if(data.order_id!==orderId) return;
+  const s=data.status;
+  liveText.textContent = s==='Processing'?'⚙️ Your order is being processed…':s==='Dispatched'?'🚚 Your order is on the way!':'📦 Update: '+s;
+  document.getElementById('status-badge').textContent=s;
+  updateStatusTrack(s);
+  showToast(`📦 Order ${s}!`, 'success');
+});
+</script>
+{% endblock %}

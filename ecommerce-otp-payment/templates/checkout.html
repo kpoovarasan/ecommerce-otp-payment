@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+{% block title %}Checkout{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-title">📋 Checkout</div>
+  <div class="checkout-layout">
+
+    <!-- LEFT: Forms -->
+    <div>
+      <!-- Step 1: Shipping -->
+      <div class="form-section">
+        <div class="form-section-title"><span class="step">1</span> Shipping Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input class="form-input" id="inp-name" type="text" placeholder="Your full name"
+              value="{% if current_user %}{{ current_user.name }}{% endif %}" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address *</label>
+            <input class="form-input" id="inp-email" type="email" placeholder="your@email.com"
+              value="{% if current_user %}{{ current_user.email }}{% endif %}" required>
+            <div class="form-hint">📧 OTP will be sent here</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Phone Number *</label>
+            <input class="form-input" id="inp-phone" type="tel" placeholder="+91 XXXXXXXXXX"
+              value="{% if current_user and current_user.phone %}{{ current_user.phone }}{% endif %}" required>
+            <div class="form-hint">📱 OTP will also be sent via SMS</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Pincode</label>
+            <input class="form-input" id="inp-pincode" type="text" placeholder="6-digit pincode" maxlength="6">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Delivery Address *</label>
+          <textarea class="form-textarea" id="inp-address" placeholder="House/Flat No., Street, Area, City, State" required>{% if current_user and current_user.address %}{{ current_user.address }}{% endif %}</textarea>
+        </div>
+      </div>
+
+      <!-- Step 2: Payment Method -->
+      <div class="form-section">
+        <div class="form-section-title"><span class="step">2</span> Payment Method</div>
+        <div class="payment-options">
+          <div class="pay-option" onclick="selectPayment('card',this)" id="pm-card">
+            <span class="pay-icon">💳</span>
+            <div><div class="pay-label">Card</div><div class="pay-sub">Credit / Debit</div></div>
+          </div>
+          <div class="pay-option" onclick="selectPayment('upi',this)" id="pm-upi">
+            <span class="pay-icon">📱</span>
+            <div><div class="pay-label">UPI</div><div class="pay-sub">GPay/PhonePe/Paytm</div></div>
+          </div>
+          <div class="pay-option" onclick="selectPayment('netbanking',this)" id="pm-netbanking">
+            <span class="pay-icon">🏦</span>
+            <div><div class="pay-label">Net Banking</div><div class="pay-sub">All major banks</div></div>
+          </div>
+          <div class="pay-option" onclick="selectPayment('cod',this)" id="pm-cod">
+            <span class="pay-icon">💵</span>
+            <div><div class="pay-label">Cash on Delivery</div><div class="pay-sub">Pay when delivered</div></div>
+          </div>
+        </div>
+
+        <!-- Card Panel -->
+        <div class="payment-detail-panel" id="panel-card">
+          <div class="card-wrap">
+            <div class="card-3d" id="card-preview">
+              <span class="card-chip">💳</span>
+              <div class="card-number-display" id="card-disp">XXXX  XXXX  XXXX  XXXX</div>
+              <div class="card-bottom">
+                <div><div class="card-label">Card Holder</div><div class="card-value" id="card-holder-disp">YOUR NAME</div></div>
+                <div><div class="card-label">Expires</div><div class="card-value" id="card-exp-disp">MM/YY</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Card Number</label>
+            <input class="form-input" id="card-num" type="text" placeholder="1234 5678 9012 3456" maxlength="19" oninput="formatCard(this)">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Expiry (MM/YY)</label>
+              <input class="form-input" id="card-exp" type="text" placeholder="MM/YY" maxlength="5" oninput="formatExpiry(this)">
+            </div>
+            <div class="form-group">
+              <label class="form-label">CVV</label>
+              <input class="form-input" id="card-cvv" type="password" placeholder="•••" maxlength="3">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Name on Card</label>
+            <input class="form-input" id="card-name" type="text" placeholder="As printed on card" oninput="document.getElementById('card-holder-disp').textContent=this.value.toUpperCase()||'YOUR NAME'">
+          </div>
+        </div>
+
+        <!-- UPI Panel -->
+        <div class="payment-detail-panel" id="panel-upi">
+          <div class="upi-qr">
+            <div class="qr-grid" id="qr-grid"></div>
+            <div class="upi-id-label">Scan to pay via UPI</div>
+            <div style="color:#64748b;font-size:0.78rem;margin-top:0.3rem;">nexusshop@upi</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Or enter UPI ID</label>
+            <input class="form-input" id="upi-id" type="text" placeholder="yourname@paytm / @gpay / @phonepe">
+          </div>
+        </div>
+
+        <!-- Net Banking Panel -->
+        <div class="payment-detail-panel" id="panel-netbanking">
+          <div class="form-group">
+            <label class="form-label">Select Your Bank</label>
+            <select class="form-select" id="bank-select" style="color:#e2e8f0;background:#1e293b;">
+              <option value="" style="background:#1e293b;color:#94a3b8;">-- Choose Bank --</option>
+              {% for bank in banks %}
+              <option style="background:#1e293b;color:#e2e8f0;">{{ bank }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:10px;padding:0.9rem;font-size:0.83rem;color:var(--text-secondary);">
+            ℹ️ You will be redirected to your bank's secure portal after OTP verification.
+          </div>
+        </div>
+
+        <!-- COD Panel -->
+        <div class="payment-detail-panel" id="panel-cod">
+          <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:1rem;font-size:0.85rem;color:var(--text-secondary);">
+            💵 Pay <strong style="color:var(--gold)">₹{{ total }}</strong> in cash when your order is delivered.
+            An OTP is still required to confirm your order.
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Review & Pay -->
+      <div class="form-section" style="text-align:center;padding:2rem;background:rgba(99,102,241,0.05);border:1px dashed rgba(99,102,241,0.3);">
+        <button class="btn btn-primary" style="width:100%;font-size:1.15rem;padding:1.2rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;" id="proceed-btn" onclick="initiateBankRedirect()">
+          🔒 Proceed to Secure Payment
+        </button>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:1rem;line-height:1.5;">
+          You will be securely redirected to the Bank Authorization Gateway.<br>
+          <strong style="color:var(--text-primary);">Do not refresh or press back once payment begins.</strong>
+        </p>
+      </div>
+    </div>
+
+    <!-- RIGHT: Order Summary -->
+    <div class="order-summary">
+      <div class="summary-title">Your Order</div>
+      {% for pid, item in cart.items() %}
+      <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem;padding-bottom:0.8rem;border-bottom:1px solid var(--border);">
+        <span style="font-size:1.5rem;">{{ item.emoji }}</span>
+        <div style="flex:1;"><div style="font-size:0.85rem;font-weight:600;">{{ item.name }}</div><div style="font-size:0.78rem;color:var(--text-muted);">Qty: {{ item.qty }}</div></div>
+        <div style="font-weight:700;font-size:0.9rem;">₹{{ (item.price * item.qty)|int }}</div>
+      </div>
+      {% endfor %}
+      <div class="summary-row"><span class="label">Subtotal</span><span>₹{{ subtotal|int }}</span></div>
+      <div class="summary-row"><span class="label">GST (18%)</span><span>₹{{ tax|int }}</span></div>
+      <div class="summary-row total"><span>Total</span><span style="color:var(--gold)">₹{{ total|int }}</span></div>
+      <div style="margin-top:1rem;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">
+        🔒 Secured by 256-bit SSL<br>
+        📧 OTP sent to email + 📱 SMS<br>
+        ✅ 5-minute OTP expiry
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Secure Bank Gateway Overlay -->
+<div id="bank-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.88);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(6px);">
+
+  <!-- Loading spinner -->
+  <div id="bank-loading" style="display:flex;flex-direction:column;align-items:center;color:white;">
+    <div style="border:4px solid rgba(255,255,255,0.2);border-left-color:#fff;border-radius:50%;width:50px;height:50px;animation:spin 1s linear infinite;"></div>
+    <div style="margin-top:1.5rem;font-size:1.2rem;font-weight:600;">Redirecting to Secure Gateway...</div>
+    <div style="margin-top:0.5rem;font-size:0.9rem;color:#94a3b8;">Please wait, processing your request</div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div id="bank-auth" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2.5rem;box-shadow:0 30px 60px -10px rgba(0,0,0,0.6);width:90%;max-width:500px;">
+    <!-- Header -->
+    <div style="text-align:center;padding-bottom:1.5rem;border-bottom:1px solid var(--border);margin-bottom:1.5rem;">
+      <div style="font-size:2.8rem;margin-bottom:0.4rem;">🏦</div>
+      <h2 style="margin:0;font-size:1.4rem;color:var(--text-primary);">Secure Payment Gateway</h2>
+      <div style="font-size:0.85rem;color:var(--text-secondary);margin-top:0.4rem;">Merchant: <strong style="color:var(--text-primary);">NexusShop</strong></div>
+      <div style="font-size:0.85rem;color:var(--text-secondary);margin-top:0.2rem;">Amount: <strong style="color:var(--gold);">₹{{ total }}</strong></div>
+    </div>
+
+    <!-- OTP Status -->
+    <div id="otp-msg" class="otp-status-msg" style="text-align:center;margin-bottom:1.2rem;font-size:0.9rem;padding:0.7rem;border-radius:8px;"></div>
+
+    <!-- OTP Entry -->
+    <div id="otp-entry-section" style="display:flex;flex-direction:column;align-items:center;">
+      <label class="form-label" style="text-align:center;width:100%;display:block;margin-bottom:0.5rem;color:var(--text-primary);">Enter 8-Character OTP <span style="font-size:0.75rem;color:var(--text-muted);">(Letters & Numbers)</span></label>
+      <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:1rem;">💡 Check your Email & SMS — OTP contains letters and numbers</div>
+      <div style="display:flex;gap:0.4rem;justify-content:center;flex-wrap:wrap;margin-bottom:1.5rem;">
+        {% for i in range(8) %}
+        <input class="otp-digit" type="text" maxlength="1" id="otp-d{{ i }}"
+          oninput="otpInput(this,{{ i }})"
+          onkeydown="otpKeydown(event,{{ i }})"
+          style="font-size:1.3rem;width:2.8rem;height:3.2rem;text-align:center;background:rgba(255,255,255,0.05);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;text-transform:uppercase;font-family:monospace;font-weight:800;{% if i == 4 %}margin-left:0.4rem;{% endif %}">
+        {% endfor %}
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;font-size:0.9rem;width:100%;">
+        <div class="otp-timer" id="otp-timer" style="color:var(--text-secondary);">⏱️ Time Remaining: <span id="timer-val" style="font-weight:bold;color:var(--text-primary);">05:00</span></div>
+        <button class="btn-resend" id="resend-btn" disabled onclick="sendOTP()" style="background:none;border:none;text-decoration:underline;font-size:0.9rem;color:var(--text-secondary);cursor:pointer;">Resend OTP</button>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:1rem;font-size:1.05rem;" id="verify-btn" onclick="verifyOTP()">
+        Confirm Payment
+      </button>
+      <div id="verify-msg" style="margin-top:1rem;text-align:center;font-size:0.9rem;font-weight:600;"></div>
+      <div style="text-align:center;margin-top:1.5rem;">
+        <button onclick="cancelBankRedirect()" style="background:none;border:none;color:var(--red);font-size:0.85rem;cursor:pointer;text-decoration:underline;">Cancel Transaction & Return</button>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+@keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
+</style>
+
+<!-- Hidden order data -->
+<input type="hidden" id="order-total" value="{{ total }}">
+<input type="hidden" id="order-subtotal" value="{{ subtotal }}">
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedPayment = '';
+let timerInterval   = null;
+let otpSent         = false;
+let clientIP        = '';
+
+// ── Fetch real public IP on page load (multiple sources, retry) ──
+const IP_SOURCES = [
+  'https://api.ipify.org?format=json',
+  'https://api.seeip.org/jsonip',
+  'https://api64.ipify.org?format=json',
+  'https://ipapi.co/json/'
+];
+
+async function fetchPublicIP() {
+  for (const url of IP_SOURCES) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      const d = await r.json();
+      const ip = d.ip || d.query || d.IPv4 || '';
+      if (ip && ip !== '127.0.0.1' && ip !== '::1') {
+        clientIP = ip;
+        console.log('[IP] Captured:', ip, 'from', url);
+        return;
+      }
+    } catch(e) { /* try next source */ }
+  }
+  clientIP = 'Unavailable';
+  console.warn('[IP] All sources failed');
+}
+
+fetchPublicIP();
+
+// ── Payment method selection ──
+function selectPayment(method, el) {
+  selectedPayment = method;
+  document.querySelectorAll('.pay-option').forEach(e => e.classList.remove('selected'));
+  document.querySelectorAll('.payment-detail-panel').forEach(e => e.classList.remove('active'));
+  el.classList.add('selected');
+  document.getElementById('panel-'+method).classList.add('active');
+}
+
+// ── Card number formatter ──
+function formatCard(inp) {
+  let v = inp.value.replace(/\D/g,'').substring(0,16);
+  inp.value = v.replace(/(.{4})/g,'$1 ').trim();
+  const disp = v.padEnd(16,'X').replace(/(.{4})/g,'$1  ').trim();
+  document.getElementById('card-disp').textContent = disp;
+}
+function formatExpiry(inp) {
+  let v = inp.value.replace(/\D/g,'');
+  if (v.length > 2) v = v.substring(0,2)+'/'+v.substring(2,4);
+  inp.value = v;
+  document.getElementById('card-exp-disp').textContent = v || 'MM/YY';
+}
+
+// ── UPI QR code (decorative) ──
+function generateQR() {
+  const g = document.getElementById('qr-grid');
+  if (!g) return;
+  const pattern = [
+    1,1,1,1,1,1,1,0,1,0,1,0,0,1,
+    1,0,0,0,0,0,1,0,0,1,0,1,0,1,
+    1,0,1,1,1,0,1,0,1,0,1,0,1,1,
+    1,0,1,1,1,0,1,0,0,1,1,0,1,1,
+    1,0,1,1,1,0,1,0,1,0,0,1,0,1,
+    1,0,0,0,0,0,1,0,0,1,0,0,1,0,
+    1,1,1,1,1,1,1,0,1,0,1,0,1,1,
+  ];
+  pattern.forEach(b=>{
+    const d=document.createElement('div');
+    d.className='qr-cell '+(b?'on':'off');
+    g.appendChild(d);
+  });
+}
+generateQR();
+
+// ── Secure Gateway Management ──
+function initiateBankRedirect() {
+  const name  = document.getElementById('inp-name').value.trim();
+  const email = document.getElementById('inp-email').value.trim();
+  const phone = document.getElementById('inp-phone').value.trim();
+
+  if (!name||!email||!phone) { showToast('Please fill in name, email and phone first.', 'error'); return; }
+  if (!selectedPayment)      { showToast('Please select a payment method first.', 'error'); return; }
+
+  const btn = document.getElementById('proceed-btn');
+  btn.disabled = true;
+  btn.innerHTML = '🔒 Connecting to Gateway...';
+
+  document.getElementById('bank-overlay').style.display = 'flex';
+  document.getElementById('bank-loading').style.display = 'flex';
+  document.getElementById('bank-auth').style.display    = 'none';
+  document.getElementById('otp-msg').textContent        = '';
+
+  setTimeout(() => { sendOTP(); }, 1200);
+}
+
+function cancelBankRedirect() {
+  document.getElementById('bank-overlay').style.display = 'none';
+  const btn = document.getElementById('proceed-btn');
+  btn.disabled = false;
+  btn.innerHTML = '🔒 Proceed to Secure Payment';
+}
+
+// ── Send OTP ──
+function sendOTP() {
+  const name  = document.getElementById('inp-name').value.trim();
+  const email = document.getElementById('inp-email').value.trim();
+  const phone = document.getElementById('inp-phone').value.trim();
+  const total = document.getElementById('order-total').value;
+  const msg   = document.getElementById('otp-msg');
+  const resendBtn = document.getElementById('resend-btn');
+
+  if(resendBtn) { resendBtn.disabled = true; resendBtn.textContent = 'Sending...'; }
+  msg.textContent = ''; msg.className = 'otp-status-msg';
+
+  fetch('/send-otp', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, email, phone, amount: total, ip: clientIP,
+                          payment_method: selectedPayment,
+                          payment_detail: document.getElementById('upi-id-input')?.value ||
+                                          document.getElementById('card-number')?.value || '',
+                          address: document.getElementById('inp-address')?.value || ''})
+  }).then(r => r.json()).then(d => {
+    if(resendBtn) { resendBtn.disabled=false; resendBtn.textContent='Resend OTP'; }
+
+    document.getElementById('bank-loading').style.display = 'none';
+    document.getElementById('bank-auth').style.display    = 'block';
+
+    if(d.success) {
+      msg.className = 'otp-status-msg success';
+      msg.innerHTML = `✅ OTP dispatched to <strong>${d.email_masked}</strong> & <strong>${d.phone_masked}</strong>`;
+      startTimer(d.expires_in||300);
+      otpSent = true;
+      document.getElementById('otp-d0').focus();
+    } else {
+      msg.className = 'otp-status-msg error'; msg.textContent = '❌ ' + d.message;
+    }
+  }).catch(() => {
+    document.getElementById('bank-loading').style.display = 'none';
+    document.getElementById('bank-auth').style.display    = 'block';
+    if(resendBtn) resendBtn.disabled = false;
+    msg.className = 'otp-status-msg error'; msg.textContent = '❌ Network error. Try again.';
+  });
+}
+
+// ── OTP alphanumeric inputs (8 chars) ──
+function otpInput(el, idx) {
+  el.value = el.value.replace(/[^a-zA-Z0-9]/g, '').slice(-1).toUpperCase();
+  if (el.value && idx < 7) document.getElementById('otp-d' + (idx + 1)).focus();
+  if (el.value) el.classList.add('filled'); else el.classList.remove('filled');
+}
+function otpKeydown(e, idx) {
+  if (e.key === 'Backspace' && !e.target.value && idx > 0)
+    document.getElementById('otp-d' + (idx - 1)).focus();
+}
+function getOTPValue() {
+  return [0,1,2,3,4,5,6,7].map(i => document.getElementById('otp-d'+i).value).join('');
+}
+
+// ── Timer countdown ──
+function startTimer(seconds) {
+  clearInterval(timerInterval);
+  let remaining = seconds;
+  const el     = document.getElementById('timer-val');
+  const resend = document.getElementById('resend-btn');
+  if(resend) resend.disabled = true;
+  timerInterval = setInterval(() => {
+    remaining--;
+    const m = Math.floor(remaining/60).toString().padStart(2,'0');
+    const s = (remaining%60).toString().padStart(2,'0');
+    if(el) el.textContent = `${m}:${s}`;
+    if(remaining <= 0){ clearInterval(timerInterval); if(resend) resend.disabled=false; if(el) el.textContent='Expired'; }
+  }, 1000);
+}
+
+// ── Verify OTP ──
+function verifyOTP() {
+  const otp = getOTPValue().toUpperCase();
+  if (otp.length !== 8) {
+    showToast('Enter all 8 characters of the OTP', 'error');
+    [0,1,2,3,4,5,6,7].forEach(i => {
+      const el = document.getElementById('otp-d'+i);
+      if (el) { el.classList.add('error-state'); setTimeout(() => el.classList.remove('error-state'), 600); }
+    });
+    return;
+  }
+  const btn = document.getElementById('verify-btn');
+  const msg = document.getElementById('verify-msg');
+  btn.disabled = true; btn.classList.add('loading'); btn.textContent = 'Authorizing…';
+
+  fetch('/verify-otp', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({otp})})
+  .then(r => r.json()).then(d => {
+    if (d.success) {
+      msg.style.color = 'var(--green)'; msg.textContent = '✅ Payment Authorized! Placing order…';
+      placeOrder();
+    } else {
+      btn.disabled = false; btn.classList.remove('loading'); btn.textContent = 'Confirm Payment';
+      msg.style.color = 'var(--red)'; msg.textContent = '❌ ' + d.message;
+      [0,1,2,3,4,5,6,7].forEach(i => {
+        const el = document.getElementById('otp-d'+i);
+        if (el) { el.classList.add('error-state'); setTimeout(() => el.classList.remove('error-state'), 600); }
+      });
+    }
+  }).catch(() => {
+    btn.disabled = false; btn.classList.remove('loading'); btn.textContent = 'Confirm Payment';
+    msg.style.color = 'var(--red)'; msg.textContent = '❌ Verification failed. Network error.';
+  });
+}
+
+function placeOrder() {
+  const pd = getPaymentDetail();
+  fetch('/place-order',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name: document.getElementById('inp-name').value,
+      email: document.getElementById('inp-email').value,
+      phone: document.getElementById('inp-phone').value,
+      address: document.getElementById('inp-address').value,
+      payment_method: selectedPayment,
+      payment_detail: pd,
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.success) window.location.href=d.redirect;
+    else showToast('Order failed: '+d.message,'error');
+  });
+}
+
+function getPaymentDetail() {
+  if(selectedPayment==='card'){
+    const n=document.getElementById('card-num').value.replace(/\s/g,'');
+    return n.length>=4 ? '****'+n.slice(-4) : 'CARD';
+  } else if(selectedPayment==='upi') return document.getElementById('upi-id').value||'UPI';
+  else if(selectedPayment==='netbanking') return document.getElementById('bank-select').value||'Bank';
+  return 'COD';
+}
+</script>
+{% endblock %}

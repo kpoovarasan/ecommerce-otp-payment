@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Order History{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-title">📦 Order History</div>
+  {% if orders %}
+  <div style="display:flex;flex-direction:column;gap:1.2rem;">
+    {% for order in orders %}
+    <div class="order-card" id="order-{{ order.order_id }}">
+      <div class="order-card-header">
+        <div>
+          <div class="order-number">{{ order.created_at.strftime('%d %b %Y, %I:%M %p') }}</div>
+          <div style="font-size:1rem;font-weight:800;color:white;">{{ order.order_id }}</div>
+        </div>
+        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;">
+          <!-- Status Badge -->
+          {% if order.status == 'Delivered' %}
+            <span class="order-status-badge" style="background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.3);">✅ Delivered</span>
+          {% elif order.status == 'Dispatched' %}
+            <span class="order-status-badge" style="background:rgba(6,182,212,0.15);color:#22d3ee;border:1px solid rgba(6,182,212,0.3);">🚚 Dispatched</span>
+          {% elif order.status == 'Processing' %}
+            <span class="order-status-badge" style="background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);">🔄 Processing</span>
+          {% elif order.status == 'Cancelled' %}
+            <span class="order-status-badge" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);">❌ Cancelled</span>
+          {% else %}
+            <span class="order-status-badge" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);">✔️ Confirmed</span>
+          {% endif %}
+          <div style="font-size:1.1rem;font-weight:800;color:var(--gold);">{{ currency }}{{ order.total|int }}</div>
+        </div>
+      </div>
+
+      <div class="order-card-body" style="padding:1rem 1.4rem;">
+        <!-- Items -->
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.7rem;">
+          {% for item in order.items %}
+          <span style="font-size:1.2rem;" title="{{ item.name }}">{{ item.emoji }}</span>
+          {% endfor %}
+        </div>
+        <div style="font-size:0.83rem;color:var(--text-muted);margin-bottom:1rem;">
+          {{ order.customer_name }} · {{ order.customer_email }} · {{ order.payment_method|upper }}
+        </div>
+
+        <!-- Mark as Received button (only for non-delivered orders) -->
+        {% if order.status != 'Delivered' and order.status != 'Cancelled' %}
+        <div style="padding-top:0.8rem;border-top:1px solid var(--border);">
+          <button onclick="markReceived('{{ order.order_id }}')"
+                  id="recv-btn-{{ order.order_id }}"
+                  style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-weight:700;font-size:0.88rem;padding:10px 22px;border-radius:10px;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(34,197,94,0.3);transition:opacity 0.2s;">
+            📬 I Received My Order
+          </button>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">Got your parcel? Click to confirm delivery.</div>
+        </div>
+        {% else %}
+        <div style="padding-top:0.8rem;border-top:1px solid var(--border);">
+          <div style="font-size:0.82rem;color:#4ade80;">✅ You confirmed delivery of this order.</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📦</div>
+    <div class="empty-title">No orders yet</div>
+    <div class="empty-sub">Start shopping to see your orders here.</div>
+    <a href="/" class="btn btn-primary">Start Shopping</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Toast notification -->
+<div id="recv-toast" style="display:none;position:fixed;bottom:30px;right:30px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-weight:700;padding:14px 24px;border-radius:14px;box-shadow:0 12px 40px rgba(34,197,94,0.4);font-size:0.95rem;z-index:9999;animation:slideUp 0.4s ease;">
+  ✅ Order marked as Delivered!
+</div>
+
+{% block scripts %}
+<script>
+function markReceived(orderId) {
+  const btn = document.getElementById('recv-btn-' + orderId);
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  btn.textContent = '⏳ Confirming...';
+
+  // Navigate to the order/received route (same as email button)
+  window.location.href = '/order/received/' + orderId;
+}
+</script>
+<style>
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+</style>
+{% endblock %}
+{% endblock %}
